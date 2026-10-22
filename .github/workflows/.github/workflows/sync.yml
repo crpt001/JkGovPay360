@@ -1,0 +1,45 @@
+
+name: Sync J&K Government Orders
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: order-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run order sync
+        run: python sync_orders.py
+
+      - name: Commit updated archive
+        run: |
+          if git status --porcelain -- data/live-archive.json | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/live-archive.json
+            git commit -m "Refresh official government order archive"
+            git push
+          else
+            echo "No archive changes to commit."
+          fi
+          
